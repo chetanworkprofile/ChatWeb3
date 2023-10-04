@@ -1,0 +1,25 @@
+﻿@page "/register"
+@using System.Text.Json;
+@inherits RegisterPageBase
+
+<div id="details-page">
+    <div id="main">
+        <h1>Fill Your Details</h1>
+        <div class="text-center" id="profile-image">
+            <img src=@imagePath alt="...">
+        </div>
+        <form action="/submit" method="post" enctype="multipart/form-data">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" @bind-value="@updateUser.username" @oninput="@onInputDebounced"
+                   required />
+
+            <label for="profileImage">Profile Image:</label>
+
+            <input type="file" id="profileImage" name="profileImage" accept="image/*" @ref="@elementReference" @onchange="async () => await UploadProfileImage_Click(elementReference)"  required>
+
+            <input type="submit" value="Continue" @onclick:preventDefault=true @onclick="()=>(UpdateUser_Click(updateUser))" />
+
+        </form>
+    </div>
+</div>
+

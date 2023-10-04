@@ -1,0 +1,751 @@
+﻿@page "/chatpage"
+@using ChatWeb3Frontend.Services;
+@using Microsoft.AspNetCore.SignalR.Client;
+@inject IJSRuntime JsRuntime
+@inject IApiCalling apiCalling
+@inherits UpdateProfileBase
+
+<div class="row">
+    <div class="column left">
+        <div class="sideBar">
+            <div class="body">
+
+                <img src="./logo.png" class="sideBarGroupPic"/>
+            </div>
+            <div class="sideBarGroup" >
+                <img src="./icons8-settings-512.png" class="imageicon" style="margin:10px; margin-bottom: 0px;" />
+                <img src="./icons8-logout-96.png" class="imageicon" style="margin:10px; margin-left:10px; margin-bottom: 0px;" @onclick="()=>{logOut();}" />
+                <img src=@imagePath class="sideBarGroupPic" @onclick="()=>{showProfile();}" />
+            </div>
+
+        </div>
+    </div>
+    <div class="column middle">
+        <div>
+            <div class="chatlistHeader">
+                <div style="display: flex; flex-direction: row;">
+                    @if (isSearching)
+                    {
+                        <img src="./icons8-back-52.png" class="imageicon" @onclick="()=>{isSearching = false; searchText= string.Empty;}" />
+                    }
+                    <div class="searchbox">
+                        <input class="textbox" @bind="@searchText" placeholder="message" @onkeyup="search" @oninput="@onInputDebounced" />
+                        <img src="./icons8-search-480.png" class="imageicon" @onclick="async ()=>{await Searching();}" />
+                    </div>
+                </div>
+               
+                <div class="tab">
+                    <div class="@getChatTabClass()" @onclick="() => {isGroups=false;}">
+                        Chats
+                    </div>
+                    <div class="@getGroupTabClass()" @onclick="() => {OnClickGroup();}">
+                        Groups
+                    </div>
+                </div>
+            </div>
+            @if (!isSearching)
+            {
+                <div class="chatlist">
+                    <div class="scrollable-element">
+                        @if (!isGroups)
+                        {
+                            foreach (OutputChatMapping chat in ChatList)
+                            {
+                                <div class="@GetClass(chat.chatId)" @onclick="async () => {await OnClickChatList(chat.chatId,chat.username);}">
+                                    @if (chat.countOfUnseen != 0)
+                                    {
+                                        <span class="message-badge"> @chat.countOfUnseen</span>
+                                    }
+                                    <div class="sendbuttonLogo">
+                                        <img src="./logo.png" class="selfPicture" />
+                                        @chat.username
+                                    </div>
+                                    @if (chat.isOnline)
+                                    {
+                                        <span class="unread-badge"></span>
+                                    }
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            foreach (OutputGroups group in GroupList)
+                            {
+                                <div class="@GetClass(group.id)" @onclick="async () => {await OnClickChatList(group.chatId,group.name, true);}">
+                                    <div class="sendbuttonLogo">
+                                        <img src="./logo.png" class="selfPicture" />
+                                        @group.name
+                                    </div>
+                                </div>
+                            }
+                            {
+                                <div class="addGroupbutton">
+                                    <img src="./icons8-plus-90.png" class="imageicon" @onclick="()=>{addGroup=true;}" />
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="chatlist">
+                    <div class="scrollable-element">
+                        @if (!isGroups)
+                        {
+                            foreach (ResponseUser chat in searchChat)
+                            {
+                                <div class="@GetClass(chat.id)" @onclick="async () => {await onClickSearchList(chat.id,chat.username);}">
+                                    <div class="sendbuttonLogo">
+                                        <img src="./logo.png" class="selfPicture" />
+                                        @chat.username
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            foreach (OutputGroups group in GroupList)
+                            {
+                                <div class="@GetClass(group.id)" @onclick="async () => {await OnClickChatList(group.chatId,group.name, true);}">
+                                    <div class="sendbuttonLogo">
+                                        <img src="./logo.png" class="selfPicture" />
+                                        @group.name
+                                    </div>
+                                </div>
+                            }
+                            @if (isGroups)
+                            {
+                                <div class="addGroupbutton">
+                                    <img src="./icons8-plus-90.png" class="imageicon" onclick="" />
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+    <div class="column right">
+        <div class="chatbox">
+            @if(openChatName != string.Empty)
+            {
+                <div class="header">
+                    <div class="tab">
+                        <img src="https://localhost:7218/Assets//Files//74105720230718171905209.jpg" class="chatPicture" />
+                        <div style="flex-direction:column;">
+                            <h5>
+                                @openChatUsername
+                            </h5>
+                        </div>
+                    </div>
+                    <div>
+                        <img src="./icons8-menu-vertical-96.png" class="imageicon" />
+                    </div>
+                </div>
+
+                <div class="messagebox" id="myDiv">
+                    <div class="scrollable-element">
+                        <div style="display:flex; flex-direction:column; justify-content:flex-end; ">
+                            @foreach (OutputMessage message in messages)
+                            {
+                                if(lastMessageTime.Date != message.createdAt.Date)
+                                {
+                                    <div class="message-date-change">
+                                        <div class=" message-Date-Divider">
+                                        </div>
+                                        <div class="message-Date">@message.createdAt.Date.ToString("dd\\/MM\\/yyyy")</div>
+                                        <div class=" message-Date-Divider">
+                                        </div>
+                                    </div>
+                                }
+                                if (message.senderId == myId)
+                                {
+                                    <div class="messageParent">
+                                            @if (message.type == 1)
+                                            {
+                                                <div class="message user " style="padding:0px;">
+                                                    <img src="@message.pathToFileAttachment" style="height:200px; width:250px; border-radius: 3px" onclick="" />
+                                                </div>
+                                                
+                                            }
+                                            else if (message.type == 2)
+                                            {
+                                                <div class="message user">
+                                                    <div class="document-message">
+                                                        <div style="display:flex; flex-direction:row; align-items:center;">
+                                                            <img src="./icons8-document-480.png" class="imageicon" style="height:35px; margin: 0px;" onclick="" />
+                                                            <div style="width: 150px; overflow: hidden;">
+                                                                @message.pathToFileAttachment!.Split("\\").Last()
+                                                            </div>
+                                                        </div>
+                                                        <img src="./icons8-download-64.png" class="imageicon" style="height:20px; margin:10px; justify-self: right;" onclick="" />
+                                                    </div>
+                                                </div>
+                                                
+                                            }
+                                            else
+                                            {
+                                                <div class="message user">
+                                                @message.content
+                                                </div>
+                                            }
+                                            @if (message.isSeen)
+                                            {
+                                                <div class="seen-badge">
+                                                    <img src="./icons8-done-208.png" style="height:14px; width:18px" />
+                                                </div>
+                                            }
+                                  
+                                    <div class="messageInfo">
+                                        @GetTime(message.createdAt)
+                                    </div>
+                                    </div>
+                                    @if (message.type != 0 && message.content != string.Empty)
+                                    {
+                                        <div class="messageParent">
+                                            <div class="message user" style="border-start-end-radius: 0px; border-end-end-radius: 10px; ">
+                                                @message.content
+                                                @if (message.isSeen)
+                                                {
+                                                    <div class="seen-badge">
+                                                        <img src="./icons8-done-208.png" style="height:14px; width:18px" />
+                                                    </div>
+                                                }
+                                            </div>
+                                            <div class="messageInfo">
+                                                @GetTime(message.createdAt)
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="messageParent2">
+                                        <div class="message">
+                                            <div style="display:flex; flex-direction:column;">
+                                                @if (message.type == 1)
+                                                {
+                                                    <img src="@message.pathToFileAttachment" style="height:200px; width:250px; border-radius:10px; margin-bottom: 5px;" onclick="" />
+                                                }
+                                                else if (message.type == 2)
+                                                {
+                                                    <div class="document-message" style="background-color: #636570;">
+                                                        <div style="display:flex; flex-direction:row; align-items:center;">
+                                                            <img src="./icons8-document-480.png" class="imageicon" style="height:35px; margin: 0px;" onclick="" />
+                                                            <div>
+                                                                heheh
+                                                            </div>
+                                                        </div>
+                                                        <img src="./icons8-download-64.png" class="imageicon" style="height:20px; margin:10px; justify-self: right;" onclick="" />
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    @message.content
+                                                }
+                                            </div>
+                                        </div>
+                                        <div class="messageInfo2">
+                                            @GetTime(message.createdAt)
+                                        </div>
+                                    </div>
+                                    @if (message.type != 0 && message.content!=string.Empty)
+                                    {
+                                        <div class="messageParent2">
+                                            <div class="message" style="border-start-start-radius: 0px; border-end-start-radius: 10px; ">
+                                                @message.content
+                                            </div>
+                                            <div class="messageInfo2">
+                                                @GetTime(message.createdAt)
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="chatboxFooter">
+                    @if (isFileUpload)
+                    {
+                        <div class="fileUpload">
+                            <div style="display:flex; flex-direction:row; align-items:center;">
+                                @if(messagetype ==2){
+                                    <img src="./icons8-document-480.png" class="imageicon" style="height:35px; margin: 3px;"  />
+                                }
+                                else
+                                {
+                                    <img src="./icons8-image-96.png" class="imageicon" style="height:35px; margin: 3px;"  />
+                                }
+                                <div style="width: 100px; overflow: hidden;">
+                                    @uploadFileName
+                                </div>
+                            </div>
+                            <img src="./icons8-close-480.png" class="imageicon" style="height:20px; margin:10px; justify-self: right;" @onclick="()=>{messagePicture = string.Empty; isFileUpload = false; messagetype = 0;}" />
+                        </div>
+                    }
+                    <div class="input-box">
+                        <input class="textbox" type="text" @bind="@textBoxValue" placeholder="message" @onkeyup="pressEnter" />
+
+                        <label for="profileImage" style="display: flex; flex-direction: row; align-items:center; width:10%;">
+                            <img src="./icons8-attach-90.png" class="imageicon" @onclick="()=>{messagetype=2;}" />
+                            <img src="./icons8-image-96.png"  class="imageicon"  @onclick="()=>{messagetype=1;}" />
+                        </label>
+                        <input type="file" id="profileImage" name="profileImage" accept="image/*"  @ref="@elementReference" hidden @onchange="async () => await UploadProfileImage_Click(elementReference,1)" required>
+                        <img src="./icons8-microphone-96.png" class="imageicon" onclick="" />
+                    </div>
+                    <button class="sendbutton" @onclick="() => {sendbuttonEvent();}"><img src="./Sendbutton.png" class="sendbuttonLogo" /></button>
+                </div>
+            }
+        </div>
+    </div>
+    @if (sidePanel)
+    {
+        <div class="sidePanel" style="background-color:#424656">
+            <div style=" padding: 10px;">
+                <img src="./icons8-close-480.png" class="imageicon" @onclick="()=>{collapseSidePanel();}" />
+            </div>
+            <div class="sidePanel-rowDiv">
+                <img src=@imagePath class="sidePanel-ProfilePic">
+                <input type="file" id="uploadImage" name="uploadImage" accept="image/*" @ref="@profileImageReference" @onchange="async () => await UploadImage_Click(profileImageReference)" style="display: none;" required>
+                <div class="buttonPosition">
+                    <div class="editButton">
+                       <label for="uploadImage"><img src="./icons8-edit-480.png" class="imageicon" /></label>
+                    </div>
+                </div>
+            </div>
+            <div class="sidePanel-rowDiv" style="align-items: center;">
+                <div>
+                    @if (editPermission)
+                    {
+                        <input class="sidepanel-Username" type="text" @bind="@updateUser.username" @oninput="@isUsernameExists" disabled=@isInputDisabled />
+                    }
+                    else
+                    {
+                        <input class="sidepanel-Username" type="text" @bind="@sidePanelUsername"  placeholder="" disabled />
+                    }
+                    @if (@isInputDisabled)
+                    {
+                        <img src="./icons8-edit-480.png" class="imageicon" @onclick:preventDefault=true @onclick="()=>(EnableInput())" />
+                    }
+                    else
+                    {
+                        <img src="https://img.icons8.com/?size=512&id=81427&format=png" class="imageicon" @onclick:preventDefault=true @onclick="()=>(UpdateUser_Click(updateUser))" />
+                    }
+                    </div>
+            </div>
+        </div>
+    }
+    @if (addGroup)
+    {
+        <div class="addGroupBackground">
+            <div class="addGroup">
+                @if(nextPage)
+                {
+                    <div style="width:100%;">
+                        <div style=" padding: 10px; display:flex; flex-direction: row; justify-content:flex-start;">
+                            <img src="./icons8-back-52.png" class="imageicon" @onclick="()=>{nextPage = false;}" />
+
+                            <div class="tab">
+                                <div class="normaltab" style="align-self:center">
+                                    <h6 style="font-size:18px; margin:5px;"> Add Description </h6>
+                                </div>
+                            </div>
+                            <img src="./icons8-close-480.png" class="imageicon" @onclick="()=>{collapseAddGroupPanel();}" />
+                        </div>
+                    </div>
+                    <div class="sidePanel-rowDiv">
+                        <img src="./icon-192.png" class="sidePanel-ProfilePic" onclick="">
+                        <div class="buttonPosition">
+                            <div class="editButton">
+                                <img src="./icons8-edit-480.png" class="imageicon" onclick="" />
+                            </div>
+                        </div>
+                    </div>
+                    <div style=" display: flex; flex-direction: row; align-items:center; justify-content:center; margin:10px;">
+                        <div>
+                            <input class="sidepanel-Username" type="text" @bind="@newGroupName" placeholder="" />
+                            <img src="./icons8-edit-480.png" class="imageicon" onclick="" />
+                        </div>
+                    </div>
+                    <div class="addGroupbutton" @onclick="()=>{nextPage = false;}">
+                        <img src="./icons8-done-208.png" class="imageicon" @onclick="async ()=> {await submitNewGroup();}" />
+                    </div>
+                }
+                else
+                {
+                    <div style="width:100%;">
+                        <div style=" padding: 10px; display:flex; flex-direction: row; justify-content:flex-start;">
+                            <div class="tab">
+                                <div class="normaltab" style="align-self:center">
+                                    <h6 style="font-size:18px; margin:5px;"> Add Participants </h6>
+                                </div>
+                            </div>
+                            <img src="./icons8-close-480.png" class="imageicon" @onclick="()=>{collapseAddGroupPanel();}" />
+                        </div>
+                    </div>
+
+                    <div class="searchbox">
+                        <input class="textbox" @bind="@groupSearchText" placeholder="message" @onkeyup="search" @oninput="@onInputDebounced" />
+                        <img src="./icons8-search-480.png" class="imageicon" @onclick="async ()=>{await Searching();}" />
+                    </div>
+
+                    <div class="chatlist">
+                        <div class="scrollable-element">
+                            @foreach (OutputChatMapping chat in ChatList)
+                            {
+                                <div class="@GetClass(chat.chatId)">
+                                    <div class="sendbuttonLogo" @onclick="()=>{ onClickAddGroupparticipantList(chat.id); }">
+                                        <img src="./logo.png" class="selfPicture" />
+                                        <h6 style="font-size:14px">@chat.username</h6>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <div class="addGroupbutton" @onclick="()=>{nextPage = true;}">
+                        <img src="./icons8-back-52.png" class="imageicon" style="transform: rotate(180deg)" />
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+
+
+
+@code {
+    bool nextPage = false;
+    string groupSearchText = string.Empty;
+    List<string> newGroupParticipantId = new List<string>();
+    string newGroupName = string.Empty;
+    bool addGroup = false;
+    int messagetype = 0;
+    string messagePicture = string.Empty;
+    string uploadFileName = string.Empty;
+    bool isFileUpload = false;
+    string searchText = string.Empty;
+    static HubConnection? hub;
+    bool sidePanel = false;
+    bool editPermission = false;
+    string sidePanelUsername = "";
+    private ElementReference elementReference;
+    Guid currChatId = new Guid();
+    string textBoxValue = string.Empty;
+    Guid myId = new Guid();
+    bool isGroups = false;
+    Guid tempGuid = Guid.Empty;
+    string chatListClass = "chatlist-item";
+    public OutputChatMapping chat = new OutputChatMapping();
+    public OutputChatMapping chat2 = new OutputChatMapping();
+    List<OutputChatMapping> ChatList = new List<OutputChatMapping>();
+    List<OutputGroups> GroupList = new List<OutputGroups>();
+    List<OutputMessage> messages = new List<OutputMessage>();
+    string openChatName = string.Empty;
+    string openChatUsername = string.Empty;
+    Guid openChatId = Guid.Empty;
+    bool isOpenChatGroup = false;
+    bool isSearching = false;
+    public Action<ChangeEventArgs> onInputDebounced;
+    List<ResponseUser> searchChat = new List<ResponseUser>();
+    DateTime lastMessageTime;
+    ResponseUser myData = new ResponseUser();
+
+    protected async override Task OnInitializedAsync()
+    {
+        hub = socket.GetHubConnection();
+        if (hub == null)
+        {
+            await socket.Connect();
+            hub = socket.GetHubConnection();
+        }
+        await GetChatList();
+        await ReceiveChatList();
+        myData = await apiCalling.getYourself();
+        sidePanelUsername = myData.username;
+        myId = myData.id;
+        updateUser.username = myData.username;
+        updateUser.pathToProfilePic = myData.pathToProfilePic;
+        imagePath = $"http://192.180.0.192:4545/{updateUser.pathToProfilePic}";
+        return;
+    }
+
+    private async Task ScrollToBottom()
+    {
+        await jsRuntime.InvokeVoidAsync("scrollToBottom", "myDiv");
+    }
+
+    
+
+    protected async Task UploadProfileImage_Click(ElementReference elementReference,int type)
+    {
+        try
+        {
+            var response = await apiCalling.UploadFileAsync(elementReference,type);
+            if (response.statusCode == 200)
+            {
+
+            }
+            var resData = JsonSerializer.Serialize(response.data);
+            Console.WriteLine(resData);
+            var fileUpload = JsonSerializer.Deserialize<FileUploadResponse>(resData);
+            Console.WriteLine(fileUpload!.pathToFile);
+            messagePicture = "https://localhost:7218/" + fileUpload!.pathToFile;
+            uploadFileName = fileUpload!.pathToFile.Split("\\").Last();
+            isFileUpload = true;
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+    }
+
+    Action<T> DebounceEvent<T>(Action<T> action, TimeSpan interval)
+    {
+        return Debounce<T>(arg =>
+        {
+            InvokeAsync(async () =>
+            {
+                action(arg);
+                await Searching();
+                StateHasChanged();
+            });
+        }, interval);
+    }
+
+    Action<T> Debounce<T>(Action<T> action, TimeSpan interval)
+    {
+        if (action == null) throw new ArgumentNullException(nameof(action));
+
+        var last = 0;
+        return arg =>
+        {
+            var current = System.Threading.Interlocked.Increment(ref last);
+            Task.Delay(interval).ContinueWith(task =>
+            {
+                if (current == last)
+                {
+                    action(arg);
+                }
+            });
+        };
+    }
+
+    public async Task ReceiveChatList()
+    {
+        hub = socket.GetHubConnection();
+        if (hub == null)
+        {
+            await socket.Connect();
+        }
+        hub!.On("ReceivedChats", (Response response) =>
+        {
+            string data = JsonSerializer.Serialize(response.data);
+            PaginationCountList<OutputChatMapping> chatList = JsonSerializer.Deserialize<PaginationCountList<OutputChatMapping>>(data)!;
+            ChatList = chatList.list;
+
+            StateHasChanged();
+        });
+
+        hub!.On("ReceivedMessage", (OutputMessage message) =>
+        {
+            if (message.chatId == openChatId)
+            {
+                messages.Add(message);
+            }
+            StateHasChanged();
+        });
+        hub!.On("ChatCreated", (Response response) =>
+        {
+            OutputChatMapping chat = JsonSerializer.Deserialize<OutputChatMapping>(JsonSerializer.Serialize(response.data))!;
+            OnClickChatList(chat.chatId, chat.username);
+            GetChatList();
+            StateHasChanged();
+        });
+    }
+
+    public void sendMessaege()
+    {
+
+    }
+
+    public async Task GetChatList()
+    {
+        var response = await hub!.InvokeAsync<Response>("GetChats",1,20);
+        string data = JsonSerializer.Serialize(response.data);
+        PaginationCountList<OutputChatMapping> chatList = JsonSerializer.Deserialize<PaginationCountList<OutputChatMapping>>(data)!;
+        ChatList = chatList.list;
+        StateHasChanged();
+    }
+
+    private string getChatTabClass()
+    {
+        if (isGroups)
+        {
+            return "normaltab" ;
+        }
+        return "choosentab";
+    }
+
+    private string getGroupTabClass()
+    {
+        if (isGroups)
+        {
+            return "choosentab";
+        }
+        return "normaltab";
+    }
+
+    private async Task OnClickChatList(Guid chatId,string username)
+    {
+        openChatUsername = username;
+        await OnClickChatList(chatId, username, false);
+        await ScrollToBottom();
+    }
+
+    private async Task OnClickChatList(Guid chatId, string name,bool isGroup)
+    {
+        openChatName = name;
+        openChatId = chatId;
+        isOpenChatGroup = isGroup;
+        if (isGroup)
+        {
+            openChatUsername = string.Empty;
+        }
+        var response = await hub!.InvokeAsync<Response>("GetChatMessages", chatId.ToString(), 1, 20);
+        string data = JsonSerializer.Serialize(response.data);
+        PaginationCountList<OutputMessage> _messages = JsonSerializer.Deserialize<PaginationCountList<OutputMessage>>(data)!;
+        messages = _messages.list;
+        StateHasChanged();
+    }
+
+    private void OnClickGroup()
+    {
+        isGroups = true;
+    }
+    /// <summary>
+    /// A function to get the class of Chat entity div (after selecting a chat it is used to change selected div's class)
+    /// </summary>
+    /// <param name="chatId"></param>
+    /// <returns> string </returns>
+    public string GetClass(Guid chatId)
+    {
+        if(chatId == tempGuid)
+        {
+            return "chatlist-item-active";
+        }
+        return chatListClass;
+    }
+
+    public void sendbuttonEvent()
+    {
+        Console.WriteLine("textboxvalue = " + textBoxValue);
+        if (textBoxValue != string.Empty || messagetype !=0)
+        {
+            InputMessage msg = new InputMessage();
+            msg.isGroup = isOpenChatGroup;
+            msg.chatId = openChatId.ToString();
+            msg.content = textBoxValue;
+            msg.type = messagetype;
+            if (messagetype != 0)
+            {
+                msg.pathToFileAttachment = messagePicture;
+            }
+            hub!.InvokeAsync<Task>("SendMessage", msg);
+            textBoxValue = string.Empty;
+            messagePicture = string.Empty;
+            isFileUpload = false;
+            messagetype = 0;
+        }
+    }
+
+
+    private void pressEnter(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            sendbuttonEvent();
+        }
+    }
+
+    private async void search(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await Searching();
+        }
+    }
+
+    public async Task Searching()
+    {
+        try
+        {
+            isSearching = true;
+            List<ResponseUser> _searchChat = await apiCalling.getUsers(searchText);
+            searchChat = _searchChat;
+        }
+        catch(Exception e)
+        {
+            searchChat.Clear();
+        }
+
+    }
+
+    private string GetTime(DateTime time)
+    {
+        lastMessageTime = time;
+        TimeSpan t = time.TimeOfDay;
+
+        return time.ToString("hh\\:mm tt");
+    }
+
+    public void showProfile()
+    {
+        sidePanel = true;
+    }
+
+    public void collapseSidePanel()
+    {
+        sidePanel = false;
+    }
+    public void collapseAddGroupPanel()
+    {
+        addGroup = false;
+        nextPage = false;
+        newGroupName = string.Empty;
+    }
+
+    public async Task onClickSearchList(Guid id,string username)
+    {
+        var response = await hub!.InvokeAsync<Response>("CreateChat", id.ToString());
+    }
+
+    public void onClickAddGroupparticipantList(string userId)
+    {
+        newGroupParticipantId.Add(userId);
+    }
+
+
+    public async Task submitNewGroup()
+    {
+        var response = await hub!.InvokeAsync<Response>("CreateGroup", newGroupName,string.Empty,string.Empty);
+        ResponseGroup groupResponse = JsonSerializer.Deserialize<ResponseGroup>(JsonSerializer.Serialize(response.data))!;
+        foreach(var member in newGroupParticipantId)
+        {
+            var res = await hub!.InvokeAsync<Response>("AddMemberToGroup", groupResponse.id.ToString(), member);
+        }
+        addGroup = false;
+        await Task.Delay(100);
+        nextPage = false;
+        //collapseAddGroupPanel();
+        return;
+    }
+
+    public void logOut()
+    {
+        _authService.Logout();
+        _navMgr.NavigateTo("/",true);
+    } 
+}

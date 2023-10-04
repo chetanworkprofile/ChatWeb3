@@ -10,6 +10,10 @@
     <link href="css/app.css" rel="stylesheet" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <link href="ChatWeb3Frontend.styles.css" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Agdasima&display=swap" rel="stylesheet">
+    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
 </head>
 
 <body>
@@ -26,7 +30,18 @@
         <a href="" class="reload">Reload</a>
         <a class="dismiss">🗙</a>
     </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/4.0.2/web3.min.js"
+            integrity="sha512-4D1Ssn7wnKX8wN5ngp9Gq+r5paUi7N+lYQO8/Mhr4djP6BDjErM9IxpaayiU0VuQKrU7wCc/+Y8ZZ9IM2lyS1Q=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
+    <script src="script.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        window.scrollToBottom = function (element) {
+            element.scrollTop = element.scrollHeight;
+        };
+    </script>
 </body>
 
 </html>

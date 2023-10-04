@@ -22,13 +22,32 @@ namespace ChatWeb3.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("ChatWeb3.Models.AccountMessageMapping", b =>
+                {
+                    b.Property<Guid>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("accountAddress")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("id");
+
+                    b.ToTable("AccountMessagemappings");
+                });
+
             modelBuilder.Entity("ChatWeb3.Models.ChatMappings", b =>
                 {
                     b.Property<Guid>("id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTime?>("createdAt")
+                    b.Property<DateTime>("datetime")
                         .HasColumnType("datetime2");
 
                     b.Property<bool>("isDeleted")
@@ -48,25 +67,6 @@ namespace ChatWeb3.Migrations
                     b.ToTable("ChatMappings");
                 });
 
-            modelBuilder.Entity("ChatWeb3.Models.CoreModels.AccountMessageMapping", b =>
-                {
-                    b.Property<Guid>("id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("accountAddress")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("message")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("id");
-
-                    b.ToTable("AccountMessagemappings");
-                });
-
             modelBuilder.Entity("ChatWeb3.Models.Group", b =>
                 {
                     b.Property<Guid>("id")
@@ -76,7 +76,7 @@ namespace ChatWeb3.Migrations
                     b.Property<Guid>("adminId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTime?>("createdAt")
+                    b.Property<DateTime>("createdAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("description")
@@ -96,12 +96,32 @@ namespace ChatWeb3.Migrations
                     b.Property<string>("pathToProfilePic")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("updatedAt")
+                    b.Property<DateTime>("updatedAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("id");
 
                     b.ToTable("Groups");
+                });
+
+            modelBuilder.Entity("ChatWeb3.Models.GroupSeenMessageMappings", b =>
+                {
+                    b.Property<Guid>("id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("groupId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("messageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("userId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("id");
+
+                    b.ToTable("GroupSeenMessageMappings");
                 });
 
             modelBuilder.Entity("ChatWeb3.Models.Message", b =>
@@ -117,10 +137,13 @@ namespace ChatWeb3.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("createdAt")
+                    b.Property<DateTime>("createdAt")
                         .HasColumnType("datetime2");
 
                     b.Property<bool>("isDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("isSeen")
                         .HasColumnType("bit");
 
                     b.Property<string>("pathToFileAttachment")
@@ -147,15 +170,8 @@ namespace ChatWeb3.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("createdAt")
+                    b.Property<DateTime>("createdAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("firstName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("isActive")
-                        .HasColumnType("bit");
 
                     b.Property<bool>("isDeleted")
                         .HasColumnType("bit");
@@ -163,14 +179,14 @@ namespace ChatWeb3.Migrations
                     b.Property<bool>("isOnline")
                         .HasColumnType("bit");
 
-                    b.Property<string>("lastName")
+                    b.Property<DateTime>("lastActive")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("pathToProfilePic")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("pathToProfilePic")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("updatedAt")
+                    b.Property<DateTime>("updatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("username")
